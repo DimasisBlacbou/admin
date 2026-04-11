@@ -14,7 +14,7 @@ const customStyles = {
   },
 };
 function App() {
-  const [productID, setProductID]=useState(0)
+  const [productID, setProductID] = useState(0);
   const [products, setProducts] = useState([]);
   const [product, setProduct] = useState({
     name: "",
@@ -25,17 +25,17 @@ function App() {
     image: "",
     inStock: false,
   });
-  const resetProduct =() =>{
+  const resetProduct = () => {
     setProduct({
-    name: "",
-    price: 0,
-    weight: 0,
-    description: "",
-    flavor: "",
-    image: "",
-    inStock: false,
-  })
-  }
+      name: "",
+      price: 0,
+      weight: 0,
+      description: "",
+      flavor: "",
+      image: "",
+      inStock: false,
+    });
+  };
   const [addModalIsOpen, setaddModalIsOpen] = useState(false);
   function addOpenModal() {
     setaddModalIsOpen(true);
@@ -46,8 +46,8 @@ function App() {
   }
   const [modalIsOpen, setModalIsOpen] = useState(false);
   function openModal(product) {
-    setProductID(product.id)
-    setProduct(product)
+    setProductID(product.id);
+    setProduct(product);
     setModalIsOpen(true);
   }
 
@@ -56,7 +56,7 @@ function App() {
   }
 
   const fetchProducts = () => {
-    fetch("http://localhost:3000/products", {
+    fetch("https://miserver-th4q.onrender.com/products", {
       method: "GET",
     })
       .then((response) => response.json())
@@ -66,7 +66,7 @@ function App() {
     fetchProducts();
   }, []);
   const deleteProduct = (id) => {
-    fetch(`http://localhost:3000/products?id=${id}`, {
+    fetch(`https://miserver-th4q.onrender.com/products?id=${id}`, {
       method: "DELETE",
     }).then((response) => {
       if (response.ok) {
@@ -77,27 +77,26 @@ function App() {
     });
   };
 
-const formRef = useRef(null)
-const formRef1 = useRef(null)
-  
+  const formRef = useRef(null);
+  const formRef1 = useRef(null);
+
   const addProduct = () => {
     const formData = new FormData(formRef.current);
-formData.set("inStock", formData.get("inStock") == "on") 
+    formData.set("inStock", formData.get("inStock") == "on");
 
-
-    fetch("http://localhost:3000/products", {
+    fetch("https://miserver-th4q.onrender.com/products", {
       method: "POST",
       body: formData,
     })
       .then((response) => response.json())
       .then((_) => fetchProducts());
   };
-  const addProduct1= () => {
+  const addProduct1 = () => {
     const formData = new FormData(formRef1.current);
-formData.set("inStock", product.inStock) 
-formData.set("id", productID)
+    formData.set("inStock", product.inStock);
+    formData.set("id", productID);
 
-    fetch("http://localhost:3000/productsChange", {
+    fetch("https://miserver-th4q.onrender.com/productsChange", {
       method: "POST",
       body: formData,
     })
@@ -111,7 +110,7 @@ formData.set("id", productID)
           <div className="product-card" key={product.id}>
             <img
               className="product-image"
-              src={`http://localhost:3000/${product.image}`}
+              src={`https://miserver-th4q.onrender.com/${product.image}`}
               alt={product.name}
             />
             <div className="product-title">{product.name}</div>
@@ -122,7 +121,7 @@ formData.set("id", productID)
             <span className="product-badge">
               {product.inStock === "true" ? "В наличии" : "Нет в наличии"}
             </span>
-            <button onClick={()=>openModal(product)}>изменить товар</button>
+            <button onClick={() => openModal(product)}>изменить товар</button>
             <button onClick={() => deleteProduct(product.id)}>
               Удалить товар
             </button>
@@ -133,9 +132,13 @@ formData.set("id", productID)
         isOpen={addModalIsOpen}
         onRequestClose={addCloseModal}
         style={customStyles}
-        
       >
-        <form className="form-add-product" action=""  encType="multipart/form-data" ref={formRef}>
+        <form
+          className="form-add-product"
+          action=""
+          encType="multipart/form-data"
+          ref={formRef}
+        >
           <h1>Форма добавления</h1>
           <input
             type="text"
@@ -178,7 +181,6 @@ formData.set("id", productID)
             type="file"
             placeholder="Изображение"
             name="image"
-
             onChange={(e) => setProduct({ ...product, image: e.target.value })}
           />
           <label>
@@ -188,7 +190,7 @@ formData.set("id", productID)
               name="inStock"
               checked={JSON.parse(product.inStock)}
               onChange={(e) =>
-                setProduct({ ...product, inStock: e.target.checked})
+                setProduct({ ...product, inStock: e.target.checked })
               }
             />
             В наличии
@@ -205,8 +207,12 @@ formData.set("id", productID)
         style={customStyles}
         np
       >
-        <form className="form-add-product" action=""  encType="multipart/form-data" ref={formRef1}
->
+        <form
+          className="form-add-product"
+          action=""
+          encType="multipart/form-data"
+          ref={formRef1}
+        >
           <h1>Форма изменения</h1>
           <input
             type="text"
@@ -216,7 +222,7 @@ formData.set("id", productID)
             onChange={(e) => setProduct({ ...product, name: e.target.value })}
           />
           <input
-          name="price"
+            name="price"
             type="number"
             placeholder="Цена"
             value={product.price}
@@ -233,7 +239,7 @@ formData.set("id", productID)
           />
           <input
             type="text"
-             name="weight"
+            name="weight"
             placeholder="Вес"
             value={product.weight}
             onChange={(e) => setProduct({ ...product, weight: e.target.value })}
@@ -249,8 +255,7 @@ formData.set("id", productID)
             type="file"
             name="image"
             placeholder="Изображение"
-         
-            onChange={(e) => setProduct({ ...product, image: e.target.value})}
+            onChange={(e) => setProduct({ ...product, image: e.target.value })}
           />
           <label>
             <input
@@ -266,7 +271,7 @@ formData.set("id", productID)
           <button type="button" onClick={() => addProduct1()}>
             изменить
           </button>
-          <input type="reset" value={"Очистить"}  onClick={resetProduct}></input>
+          <input type="reset" value={"Очистить"} onClick={resetProduct}></input>
         </form>
       </Modal>
       <button onClick={addOpenModal}>Добавить товар</button>
