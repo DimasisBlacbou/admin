@@ -84,7 +84,7 @@ function App() {
     const formData = new FormData(formRef.current);
     formData.set("inStock", formData.get("inStock") == "on");
 
-    fetch("https://miserver-th4q.onrender.com/products", {
+    fetch(`${import.meta.env.VITE_API_MISERVER}/products`, {
       method: "POST",
       body: formData,
     })
@@ -96,7 +96,7 @@ function App() {
     formData.set("inStock", product.inStock);
     formData.set("id", productID);
 
-    fetch("https://miserver-th4q.onrender.com/productsChange", {
+    fetch(`${import.meta.env.VITE_API_MISERVER}/productsChange`, {
       method: "POST",
       body: formData,
     })
@@ -110,7 +110,7 @@ function App() {
           <div className="product-card" key={product.id}>
             <img
               className="product-image"
-              src={`https://miserver-th4q.onrender.com/${product.image}`}
+              src={`${import.meta.env.VITE_API_MISERVER}/${product.image}`}
               alt={product.name}
             />
             <div className="product-title">{product.name}</div>
