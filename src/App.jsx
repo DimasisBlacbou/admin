@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import Modal from "react-modal";
 import "./App.css";
+
 Modal.setAppElement("#root");
+
 const customStyles = {
   content: {
     background: "none",
@@ -13,9 +15,55 @@ const customStyles = {
     transform: "translate(-50%, -50%)",
   },
 };
+
 function App() {
+  // ================= AUTH =================
+  const [isAuth, setIsAuth] = useState(false);
+  const [loginData, setLoginData] = useState({
+    mail: "",
+    password: "",
+  });
+  const [error, setError] = useState("");
+
+  const handleLogin = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_MISERVER}/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(loginData),
+        }
+      );
+
+      if (!response.ok) {
+        setError("Неправильный пароль или почта");
+        return;
+      }
+
+      const data = await response.json();
+      localStorage.setItem("token", data.token);
+
+      setIsAuth(true);
+      setError("");
+      fetchProducts();
+    } catch (e) {
+      console.error(e);
+      setError("Ошибка сервера");
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    setIsAuth(false);
+  };
+
+  // ================= PRODUCTS =================
   const [productID, setProductID] = useState(0);
   const [products, setProducts] = useState([]);
+
   const [product, setProduct] = useState({
     name: "",
     price: 0,
@@ -25,6 +73,7 @@ function App() {
     image: "",
     inStock: false,
   });
+
   const resetProduct = () => {
     setProduct({
       name: "",
@@ -36,44 +85,25 @@ function App() {
       inStock: false,
     });
   };
-  const [addModalIsOpen, setaddModalIsOpen] = useState(false);
-  function addOpenModal() {
-    setaddModalIsOpen(true);
-  }
-
-  function addCloseModal() {
-    setaddModalIsOpen(false);
-  }
-  const [modalIsOpen, setModalIsOpen] = useState(false);
-  function openModal(product) {
-    setProductID(product.id);
-    setProduct(product);
-    setModalIsOpen(true);
-  }
-
-  function closeModal() {
-    setModalIsOpen(false);
-  }
 
   const fetchProducts = () => {
-    fetch("https://miserver-th4q.onrender.com/products", {
-      method: "GET",
+    fetch(`${import.meta.env.VITE_API_MISERVER}/products`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
     })
-      .then((response) => response.json())
+      .then((res) => res.json())
       .then((data) => setProducts(data));
   };
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+
   const deleteProduct = (id) => {
-    fetch(`https://miserver-th4q.onrender.com/products?id=${id}`, {
+    fetch(`${import.meta.env.VITE_API_MISERVER}/products?id=${id}`, {
       method: "DELETE",
-    }).then((response) => {
-      if (response.ok) {
-        fetchProducts();
-      } else {
-        console.error("Failed to delete product");
-      }
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    }).then((res) => {
+      if (res.ok) fetchProducts();
     });
   };
 
@@ -82,15 +112,19 @@ function App() {
 
   const addProduct = () => {
     const formData = new FormData(formRef.current);
-    formData.set("inStock", formData.get("inStock") == "on");
+    formData.set("inStock", formData.get("inStock") === "on");
 
     fetch(`${import.meta.env.VITE_API_MISERVER}/products`, {
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
       body: formData,
     })
-      .then((response) => response.json())
-      .then((_) => fetchProducts());
+      .then((res) => res.json())
+      .then(() => fetchProducts());
   };
+
   const addProduct1 = () => {
     const formData = new FormData(formRef1.current);
     formData.set("inStock", product.inStock);
@@ -98,183 +132,198 @@ function App() {
 
     fetch(`${import.meta.env.VITE_API_MISERVER}/productsChange`, {
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
       body: formData,
     })
-      .then((response) => response.json())
-      .then((_) => fetchProducts());
+      .then((res) => res.json())
+      .then(() => fetchProducts());
   };
+
+  // ================= MODALS =================
+  const [addModalIsOpen, setaddModalIsOpen] = useState(false);
+  const [modalIsOpen, setModalIsOpen] = useState(false);
+
+  const openModal = (product) => {
+    setProductID(product.id);
+    setProduct(product);
+    setModalIsOpen(true);
+  };
+
+  // ================= INIT =================
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setIsAuth(true);
+      fetchProducts();
+    }
+  }, []);
+
+  // ================= LOGIN SCREEN =================
+  if (!isAuth) {
+    return (
+      <div className="container py-8">
+        {error && <p style={{ color: "red" }}>{error}</p>}
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleLogin();
+          }}
+          style={{
+            maxWidth: "400px",
+            margin: "0 auto",
+            padding: "20px",
+            background: "#222",
+            borderRadius: "10px",
+          }}
+        >
+          <h2>Вход</h2>
+
+          <input
+            type="email"
+            placeholder="Email"
+            value={loginData.mail}
+            onChange={(e) =>
+              setLoginData({ ...loginData, mail: e.target.value })
+            }
+          />
+
+          <input
+            type="password"
+            placeholder="Пароль"
+            value={loginData.password}
+            onChange={(e) =>
+              setLoginData({ ...loginData, password: e.target.value })
+            }
+          />
+
+          <button type="submit">Войти</button>
+        </form>
+      </div>
+    );
+  }
+
+  // ================= MAIN APP =================
   return (
     <>
+      <button onClick={logout}>Выйти</button>
+
       <div className="products-list">
-        {products.map((product) => (
-          <div className="product-card" key={product.id}>
+        {products.map((p) => (
+          <div className="product-card" key={p.id}>
             <img
               className="product-image"
-              src={`${import.meta.env.VITE_API_MISERVER}/${product.image}`}
-              alt={product.name}
+              src={`${import.meta.env.VITE_API_MISERVER}/${p.image}`}
+              alt={p.name}
             />
-            <div className="product-title">{product.name}</div>
-            <div className="product-price">{product.price} ₽</div>
-            <div className="product-info">Вес: {product.weight}</div>
-            <div className="product-info">Вкус: {product.flavor}</div>
-            <div className="product-description">{product.description}</div>
-            <span className="product-badge">
-              {product.inStock === "true" ? "В наличии" : "Нет в наличии"}
-            </span>
-            <button onClick={() => openModal(product)}>изменить товар</button>
-            <button onClick={() => deleteProduct(product.id)}>
-              Удалить товар
-            </button>
+            <div>{p.name}</div>
+            <div>{p.price} ₽</div>
+            <div>Вес: {p.weight}</div>
+            <div>Вкус: {p.flavor}</div>
+            <div>{p.description}</div>
+            <span>{p.inStock ? "В наличии" : "Нет в наличии"}</span>
+
+            <button onClick={() => openModal(p)}>изменить</button>
+            <button onClick={() => deleteProduct(p.id)}>удалить</button>
           </div>
         ))}
       </div>
-      <Modal
-        isOpen={addModalIsOpen}
-        onRequestClose={addCloseModal}
-        style={customStyles}
-      >
-        <form
-          className="form-add-product"
-          action=""
-          encType="multipart/form-data"
-          ref={formRef}
-        >
-          <h1>Форма добавления</h1>
+
+      <button onClick={() => setaddModalIsOpen(true)}>Добавить товар</button>
+
+      {/* ADD MODAL */}
+      <Modal isOpen={addModalIsOpen} style={customStyles}>
+        <form ref={formRef}>
+          <h1>Добавление</h1>
+
+          <input name="name" placeholder="Название" />
+          <input name="price" type="number" placeholder="Цена" />
+          <input name="description" placeholder="Описание" />
+          <input name="weight" placeholder="Вес" />
+          <input name="flavor" placeholder="Вкус" />
+
           <input
-            type="text"
-            placeholder="Название"
+            type="file"
+            name="image"
+            onChange={(e) =>
+              setProduct({ ...product, image: e.target.files[0] })
+            }
+          />
+
+          <label>
+            <input type="checkbox" name="inStock" />В наличии
+          </label>
+
+          <button type="button" onClick={addProduct}>
+            Добавить
+          </button>
+        </form>
+      </Modal>
+
+      {/* EDIT MODAL */}
+      <Modal isOpen={modalIsOpen} style={customStyles}>
+        <form ref={formRef1}>
+          <h1>Изменение</h1>
+
+          <input
             name="name"
             value={product.name}
             onChange={(e) => setProduct({ ...product, name: e.target.value })}
           />
+
           <input
-            type="number"
-            placeholder="Цена"
             name="price"
+            type="number"
             value={product.price}
             onChange={(e) => setProduct({ ...product, price: e.target.value })}
           />
+
           <input
-            type="text"
-            placeholder="Описание"
             name="description"
             value={product.description}
             onChange={(e) =>
-              setProduct({ ...product, description: e.target.value })
+              setProduct({
+                ...product,
+                description: e.target.value,
+              })
             }
           />
+
           <input
-            type="text"
-            placeholder="Вес"
             name="weight"
             value={product.weight}
             onChange={(e) => setProduct({ ...product, weight: e.target.value })}
           />
+
           <input
-            type="text"
-            placeholder="Вкус"
             name="flavor"
             value={product.flavor}
             onChange={(e) => setProduct({ ...product, flavor: e.target.value })}
           />
-          <input
-            type="file"
-            placeholder="Изображение"
-            name="image"
-            onChange={(e) => setProduct({ ...product, image: e.target.value })}
-          />
+
+          <input type="file" name="image" />
+
           <label>
             <input
               type="checkbox"
-              placeholder="Наличие"
-              name="inStock"
-              checked={JSON.parse(product.inStock)}
+              checked={product.inStock}
               onChange={(e) =>
-                setProduct({ ...product, inStock: e.target.checked })
+                setProduct({
+                  ...product,
+                  inStock: e.target.checked,
+                })
               }
             />
             В наличии
           </label>
-          <button type="button" onClick={() => addProduct()}>
-            Добавить товар
+
+          <button type="button" onClick={addProduct1}>
+            сохранить
           </button>
-          <input type="reset" value={"Очистить"} onClick={resetProduct}></input>
         </form>
       </Modal>
-      <Modal
-        isOpen={modalIsOpen}
-        onRequestClose={closeModal}
-        style={customStyles}
-        np
-      >
-        <form
-          className="form-add-product"
-          action=""
-          encType="multipart/form-data"
-          ref={formRef1}
-        >
-          <h1>Форма изменения</h1>
-          <input
-            type="text"
-            name="name"
-            placeholder="Название"
-            value={product.name}
-            onChange={(e) => setProduct({ ...product, name: e.target.value })}
-          />
-          <input
-            name="price"
-            type="number"
-            placeholder="Цена"
-            value={product.price}
-            onChange={(e) => setProduct({ ...product, price: e.target.value })}
-          />
-          <input
-            type="text"
-            name="description"
-            placeholder="Описание"
-            value={product.description}
-            onChange={(e) =>
-              setProduct({ ...product, description: e.target.value })
-            }
-          />
-          <input
-            type="text"
-            name="weight"
-            placeholder="Вес"
-            value={product.weight}
-            onChange={(e) => setProduct({ ...product, weight: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="Вкус"
-            name="flavor"
-            value={product.flavor}
-            onChange={(e) => setProduct({ ...product, flavor: e.target.value })}
-          />
-          <input
-            type="file"
-            name="image"
-            placeholder="Изображение"
-            onChange={(e) => setProduct({ ...product, image: e.target.value })}
-          />
-          <label>
-            <input
-              type="checkbox"
-              placeholder="Наличие"
-              checked={JSON.parse(product.inStock)}
-              onChange={(e) =>
-                setProduct({ ...product, inStock: e.target.checked })
-              }
-            />
-            В наличии
-          </label>
-          <button type="button" onClick={() => addProduct1()}>
-            изменить
-          </button>
-          <input type="reset" value={"Очистить"} onClick={resetProduct}></input>
-        </form>
-      </Modal>
-      <button onClick={addOpenModal}>Добавить товар</button>
     </>
   );
 }
