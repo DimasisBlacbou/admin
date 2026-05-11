@@ -19,10 +19,12 @@ const customStyles = {
 function App() {
   // ================= AUTH =================
   const [isAuth, setIsAuth] = useState(false);
+
   const [loginData, setLoginData] = useState({
     mail: "",
     password: "",
   });
+
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
@@ -34,6 +36,7 @@ function App() {
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include",
           body: JSON.stringify(loginData),
         }
       );
@@ -43,11 +46,9 @@ function App() {
         return;
       }
 
-      const data = await response.json();
-      localStorage.setItem("token", data.token);
-
       setIsAuth(true);
       setError("");
+
       fetchProducts();
     } catch (e) {
       console.error(e);
@@ -55,13 +56,23 @@ function App() {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
+  const logout = async () => {
+    try {
+      await fetch(`${import.meta.env.VITE_API_MISERVER}/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
     setIsAuth(false);
+    setProducts([]);
   };
 
   // ================= PRODUCTS =================
   const [productID, setProductID] = useState(0);
+
   const [products, setProducts] = useState([]);
 
   const [product, setProduct] = useState({
@@ -86,63 +97,105 @@ function App() {
     });
   };
 
-  const fetchProducts = () => {
-    fetch(`${import.meta.env.VITE_API_MISERVER}/products`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => setProducts(data));
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_MISERVER}/products`,
+        {
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setIsAuth(false);
+        }
+
+        return;
+      }
+
+      const data = await response.json();
+
+      setProducts(data);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const deleteProduct = (id) => {
-    fetch(`${import.meta.env.VITE_API_MISERVER}/products?id=${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    }).then((res) => {
-      if (res.ok) fetchProducts();
-    });
+  const deleteProduct = async (id) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_MISERVER}/products?id=${id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      if (response.ok) {
+        fetchProducts();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const formRef = useRef(null);
   const formRef1 = useRef(null);
 
-  const addProduct = () => {
-    const formData = new FormData(formRef.current);
-    formData.set("inStock", formData.get("inStock") === "on");
+  const addProduct = async () => {
+    try {
+      const formData = new FormData(formRef.current);
 
-    fetch(`${import.meta.env.VITE_API_MISERVER}/products`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: formData,
-    })
-      .then((res) => res.json())
-      .then(() => fetchProducts());
+      formData.set("inStock", formData.get("inStock") === "on");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_MISERVER}/products`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        }
+      );
+
+      if (response.ok) {
+        fetchProducts();
+        resetProduct();
+        setaddModalIsOpen(false);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const addProduct1 = () => {
-    const formData = new FormData(formRef1.current);
-    formData.set("inStock", product.inStock);
-    formData.set("id", productID);
+  const addProduct1 = async () => {
+    try {
+      const formData = new FormData(formRef1.current);
 
-    fetch(`${import.meta.env.VITE_API_MISERVER}/productsChange`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: formData,
-    })
-      .then((res) => res.json())
-      .then(() => fetchProducts());
+      formData.set("inStock", product.inStock);
+      formData.set("id", productID);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_MISERVER}/productsChange`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        }
+      );
+
+      if (response.ok) {
+        fetchProducts();
+        setModalIsOpen(false);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // ================= MODALS =================
   const [addModalIsOpen, setaddModalIsOpen] = useState(false);
+
   const [modalIsOpen, setModalIsOpen] = useState(false);
 
   const openModal = (product) => {
@@ -153,11 +206,25 @@ function App() {
 
   // ================= INIT =================
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      setIsAuth(true);
-      fetchProducts();
-    }
+    const checkAuth = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_MISERVER}/auth`,
+          {
+            credentials: "include",
+          }
+        );
+
+        if (response.ok) {
+          setIsAuth(true);
+          fetchProducts();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   // ================= LOGIN SCREEN =================
@@ -186,7 +253,10 @@ function App() {
             placeholder="Email"
             value={loginData.mail}
             onChange={(e) =>
-              setLoginData({ ...loginData, mail: e.target.value })
+              setLoginData({
+                ...loginData,
+                mail: e.target.value,
+              })
             }
           />
 
@@ -195,7 +265,10 @@ function App() {
             placeholder="Пароль"
             value={loginData.password}
             onChange={(e) =>
-              setLoginData({ ...loginData, password: e.target.value })
+              setLoginData({
+                ...loginData,
+                password: e.target.value,
+              })
             }
           />
 
@@ -218,14 +291,21 @@ function App() {
               src={`${import.meta.env.VITE_API_MISERVER}/${p.image}`}
               alt={p.name}
             />
+
             <div>{p.name}</div>
+
             <div>{p.price} ₽</div>
+
             <div>Вес: {p.weight}</div>
+
             <div>Вкус: {p.flavor}</div>
+
             <div>{p.description}</div>
+
             <span>{p.inStock ? "В наличии" : "Нет в наличии"}</span>
 
             <button onClick={() => openModal(p)}>изменить</button>
+
             <button onClick={() => deleteProduct(p.id)}>удалить</button>
           </div>
         ))}
@@ -239,18 +319,16 @@ function App() {
           <h1>Добавление</h1>
 
           <input name="name" placeholder="Название" />
+
           <input name="price" type="number" placeholder="Цена" />
+
           <input name="description" placeholder="Описание" />
+
           <input name="weight" placeholder="Вес" />
+
           <input name="flavor" placeholder="Вкус" />
 
-          <input
-            type="file"
-            name="image"
-            onChange={(e) =>
-              setProduct({ ...product, image: e.target.files[0] })
-            }
-          />
+          <input type="file" name="image" />
 
           <label>
             <input type="checkbox" name="inStock" />В наличии
@@ -258,6 +336,10 @@ function App() {
 
           <button type="button" onClick={addProduct}>
             Добавить
+          </button>
+
+          <button type="button" onClick={() => setaddModalIsOpen(false)}>
+            Закрыть
           </button>
         </form>
       </Modal>
@@ -270,14 +352,24 @@ function App() {
           <input
             name="name"
             value={product.name}
-            onChange={(e) => setProduct({ ...product, name: e.target.value })}
+            onChange={(e) =>
+              setProduct({
+                ...product,
+                name: e.target.value,
+              })
+            }
           />
 
           <input
             name="price"
             type="number"
             value={product.price}
-            onChange={(e) => setProduct({ ...product, price: e.target.value })}
+            onChange={(e) =>
+              setProduct({
+                ...product,
+                price: e.target.value,
+              })
+            }
           />
 
           <input
@@ -294,13 +386,23 @@ function App() {
           <input
             name="weight"
             value={product.weight}
-            onChange={(e) => setProduct({ ...product, weight: e.target.value })}
+            onChange={(e) =>
+              setProduct({
+                ...product,
+                weight: e.target.value,
+              })
+            }
           />
 
           <input
             name="flavor"
             value={product.flavor}
-            onChange={(e) => setProduct({ ...product, flavor: e.target.value })}
+            onChange={(e) =>
+              setProduct({
+                ...product,
+                flavor: e.target.value,
+              })
+            }
           />
 
           <input type="file" name="image" />
@@ -321,6 +423,10 @@ function App() {
 
           <button type="button" onClick={addProduct1}>
             сохранить
+          </button>
+
+          <button type="button" onClick={() => setModalIsOpen(false)}>
+            Закрыть
           </button>
         </form>
       </Modal>
