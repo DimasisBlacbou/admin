@@ -27,6 +27,22 @@ function App() {
 
   const [error, setError] = useState("");
 
+  // Checks /auth — returns true if the current cookie belongs to an admin
+  const checkAuth = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_MISERVER}/auth`,
+        {
+          credentials: "include",
+        },
+      );
+      return response.ok; // 403 for non-admin, 401 for no token
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  };
+
   const handleLogin = async () => {
     try {
       const response = await fetch(
@@ -38,7 +54,7 @@ function App() {
           },
           credentials: "include",
           body: JSON.stringify(loginData),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -46,9 +62,20 @@ function App() {
         return;
       }
 
+      // Credentials are correct, but verify the account is an admin
+      const isAdmin = await checkAuth();
+      if (!isAdmin) {
+        setError("Нет доступа. Требуются права администратора.");
+        // Log out the cookie the server just set so it isn't reused
+        await fetch(`${import.meta.env.VITE_API_MISERVER}/logout`, {
+          method: "POST",
+          credentials: "include",
+        });
+        return;
+      }
+
       setIsAuth(true);
       setError("");
-
       fetchProducts();
     } catch (e) {
       console.error(e);
@@ -103,7 +130,7 @@ function App() {
         `${import.meta.env.VITE_API_MISERVER}/products`,
         {
           credentials: "include",
-        }
+        },
       );
 
       if (!response.ok) {
@@ -129,7 +156,7 @@ function App() {
         {
           method: "DELETE",
           credentials: "include",
-        }
+        },
       );
 
       if (response.ok) {
@@ -155,7 +182,7 @@ function App() {
           method: "POST",
           credentials: "include",
           body: formData,
-        }
+        },
       );
 
       if (response.ok) {
@@ -181,7 +208,7 @@ function App() {
           method: "POST",
           credentials: "include",
           body: formData,
-        }
+        },
       );
 
       if (response.ok) {
@@ -206,25 +233,15 @@ function App() {
 
   // ================= INIT =================
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_MISERVER}/auth`,
-          {
-            credentials: "include",
-          }
-        );
-
-        if (response.ok) {
-          setIsAuth(true);
-          fetchProducts();
-        }
-      } catch (e) {
-        console.error(e);
+    const init = async () => {
+      const isAdmin = await checkAuth();
+      if (isAdmin) {
+        setIsAuth(true);
+        fetchProducts();
       }
     };
 
-    checkAuth();
+    init();
   }, []);
 
   // ================= LOGIN SCREEN =================
@@ -271,6 +288,7 @@ function App() {
               })
             }
           />
+          <br />
 
           <button type="submit">Войти</button>
         </form>
@@ -315,7 +333,7 @@ function App() {
 
       {/* ADD MODAL */}
       <Modal isOpen={addModalIsOpen} style={customStyles}>
-        <form ref={formRef}>
+        <form ref={formRef} className="form-add-product">
           <h1>Добавление</h1>
 
           <input name="name" placeholder="Название" />
@@ -346,7 +364,7 @@ function App() {
 
       {/* EDIT MODAL */}
       <Modal isOpen={modalIsOpen} style={customStyles}>
-        <form ref={formRef1}>
+        <form ref={formRef1} className="form-add-product">
           <h1>Изменение</h1>
 
           <input
